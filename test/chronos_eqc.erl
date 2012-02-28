@@ -15,7 +15,7 @@
 
 -record(state,
         {servers = [] :: [chronos:server_name()],
-         started = [] :: [ timer_expiry:unique_timer() ],
+         started = [] :: [ timer_expiry:unique_timer() ],  %% this type is incorrect!
          running = [] :: [ timer_expiry:server_timer() ]
         }).
 
@@ -42,14 +42,14 @@ command(S) ->
 %% Next state transformation, S is the current state
 next_state(S, _V, {call, timer_expiry, start_server, [ServerName]}) ->
     S#state{ servers = [ServerName | S#state.servers] };
-next_state(S, TS, {call, timer_expiry, start_timer, [Server, Timer, _Duration]}) ->
-    S#state{ started = [ {{Server,Timer}, TS} | S#state.started],
+next_state(S, TS, {call, timer_expiry, start_timer, [Server, Timer, Duration]}) ->
+    S#state{ started = [ {{Server,Timer}, TS, Duration} | S#state.started],
              running = [ {Server, Timer} | S#state.running ]
            };
 next_state(S, _V, {call, timer_expiry, stop_timer, [Server, Timer]}) ->
     S#state{ running = lists:delete({Server, Timer}, S#state.running)};
-next_state(S, _V, {call, ?MODULE, advance_time, [_Duration]}) ->
-    S.
+next_state(S, _V, {call, ?MODULE, advance_time, [Duration]}) ->
+    S#state{ started = [ {{Server,Timer}, TS, Timeout - Duration} || {{Server,Timer}, TS, Timeout}<-S#state.started]}.
 
 %% Precondition, checked before command is added to the command sequence
 precondition(S, {call, timer_expiry, start_server, [ServerName]}) ->
@@ -82,7 +82,7 @@ postcondition(S, {call, ?MODULE, advance_time, [_Duration]}, _) ->
 postcondition(_, _, _) ->
     false.
 
-valid_timer_status({{Server, Timer}, StartTime}) ->
+valid_timer_status({{Server, Timer}, StartTime, Timeout}) ->
     case timer_expiry:timer_status(Server, Timer, StartTime) of
         {expired, {_StartTime, Duration, ActualDuration}} when ActualDuration >= Duration->
             true;
