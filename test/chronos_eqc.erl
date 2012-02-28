@@ -46,12 +46,8 @@ next_state(S, TS, {call, timer_expiry, start_timer, [Server, Timer, _Duration]})
     S#state{ started = [ {{Server,Timer}, TS} | S#state.started],
              running = [ {Server, Timer} | S#state.running ]
            };
-next_state(S, {var,_}, {call, timer_expiry, stop_timer, [Server, Timer]}) ->
+next_state(S, _V, {call, timer_expiry, stop_timer, [Server, Timer]}) ->
     S#state{ running = lists:delete({Server, Timer}, S#state.running)};
-next_state(S, ok, {call, timer_expiry, stop_timer, [Server, Timer]}) ->
-    S#state{ running = lists:delete({Server, Timer}, S#state.running) };
-next_state(S, not_running, {call, timer_expiry, stop_timer, [_Server, _Timer]}) ->
-    S;
 next_state(S, _V, {call, ?MODULE, advance_time, [_Duration]}) ->
     S.
 
